@@ -25,31 +25,32 @@ def main():
         input("\nPresione Enter para ingresar los segmentos rectos...")
 
         # --- Segmentos Rectos ---
-        print("\nIngrese las longitudes de los segmentos rectos:")
+        num_segmentos = int(input("\n¿Cuántos tramos rectos tiene la pieza? [ej. 6]: "))
         
-        # En el original eran calculos fijos: sa=50-5, etc.
-        # Aquí pediremos el valor final del segmento o la operación si el usuario prefiere calcularlo antes.
-        # Asumiremos que el usuario mete el valor neto del segmento recto.
-        sa = float(input("Segmento a [ej. 45]: "))
-        sb = float(input("Segmento b [ej. 90]: "))
-        sc = float(input("Segmento c [ej. 115]: "))
-        sd = float(input("Segmento d [ej. 90]: "))
-        se = float(input("Segmento e [ej. 40]: "))
-        sf = float(input("Segmento f [ej. 45]: "))
+        segmentos = []
+        suma_segmentos = 0
+        
+        print(f"Ingrese la longitud de los {num_segmentos} tramos:")
+        for i in range(1, num_segmentos + 1):
+            seg = float(input(f"  Tramo {i}: "))
+            segmentos.append(seg)
+            suma_segmentos += seg
 
-        print(f"\nSegmentos ingresados:")
-        print(f"a = {sa}")
-        print(f"b = {sb}")
-        print(f"c = {sc}")
-        print(f"d = {sd}")
-        print(f"e = {se}")
-        print(f"f = {sf}")
+        print(f"\nLongitud total de tramos rectos: {suma_segmentos}")
 
         input("\nPresione Enter para calcular longitud total...")
 
         # --- Longitud Total ---
-        # El original tenía 5 curvas (5 * AB) mas los 6 segmentos
-        L = sa + sb + sc + sd + se + sf + (5 * AB)
+        # Asumiremos que el número de curvas es (número de tramos - 1) si es una linea continua abierta
+        # O el usuario podría querer especificarlo.
+        # En el ejemplo original: 6 tramos, 5 curvas. Coincide con n-1.
+        num_curvas = num_segmentos - 1
+        # Si fuese 1 solo tramo, 0 curvas.
+        if num_curvas < 0: num_curvas = 0
+        
+        print(f"Calculando con {num_curvas} curvas de 90°...")
+
+        L = suma_segmentos + (num_curvas * AB)
         
         print("\n--- Resumen ---")
         print(f"Longitud Total (L) = {round(L, 2)} mm")
