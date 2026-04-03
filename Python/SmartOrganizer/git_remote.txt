@@ -1,0 +1,2 @@
+origin	https://github.com/UnCapullo1/Raspberry_Pi.git (fetch)
+origin	https://github.com/UnCapullo1/Raspberry_Pi.git (push)

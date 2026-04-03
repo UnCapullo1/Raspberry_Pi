@@ -1,0 +1,25 @@
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   ../CalculadoraMaestra.py
+	new file:   diff.txt
+	modified:   pdf_organizer.py
+	new file:   ../calculo_cilindro.py
+	new file:   ../../TI-84/HYDRA.py
+	new file:   ../../TI-84/INY_FOR.py
+	new file:   ../../TI-84/INY_MAQ.py
+	new file:   ../../TI-84/INY_MOL.py
+	new file:   ../../TI-84/__pycache__/INY_MAQ.cpython-313.pyc
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	../../Navantia/
+	git_push.txt
+	git_remote.txt
+	git_status.txt
+	npm_root.txt
+	path.txt
+	../calculadora_mecanizado.py
+

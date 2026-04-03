@@ -1,0 +1,5 @@
+commit c70ced6e15c0717aa194f398cb701912b9a04246
+Author: UnCapullo <sousaanton72@gmail.com>
+Date:   Sat Apr 4 00:38:42 2026 +0200
+
+    feat: add master calculator menu and enhance PDF organizer with hashing and move functionality
