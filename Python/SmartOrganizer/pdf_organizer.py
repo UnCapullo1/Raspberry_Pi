@@ -3,13 +3,22 @@ import shutil
 import threading
 import requests
 import fitz  # PyMuPDF
+import hashlib
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 
 # --- Configuration ---
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 DEFAULT_MODEL = "llama3"  # Change to "mistral" or "gemma" if preferred
-CATEGORIES = ["Personal", "Trabajo", "Finanzas", "Educación", "Manuales", "Facturas", "Otros"]
+CATEGORIES = [
+    "Calculos de herramientas y piezas normalizadas",
+    "Materiales",
+    "Moldes de productos polimericos",
+    "Ingles",
+    "Dibujo tecnico",
+    "Maquinas por estampacion",
+    "Otros"
+]
 
 class OllamaClient:
     def __init__(self, model=DEFAULT_MODEL):
@@ -61,7 +70,33 @@ class PDFProcessor:
             print(f"Error leyendo PDF {filepath}: {e}")
             return None
 
-    def organize_file(self, filepath, source_dir, target_dir, category):
+    def get_file_hash(self, filepath):
+        """Calcula el hash SHA-256 de un archivo para detectar duplicados."""
+        sha256_hash = hashlib.sha256()
+        try:
+            with open(filepath, "rb") as f:
+                # Leer en bloques para no saturar memoria con archivos grandes
+                for byte_block in iter(lambda: f.read(4096), b""):
+                    sha256_hash.update(byte_block)
+            return sha256_hash.hexdigest()
+        except Exception as e:
+            print(f"Error calculando hash de {filepath}: {e}")
+            return None
+
+    def get_existing_hashes(self, target_dir):
+        """Escanea el directorio de destino para obtener los hashes y metadatos de archivos existentes."""
+        hash_map = {}
+        for root, _, files in os.walk(target_dir):
+            for file in files:
+                if file.lower().endswith('.pdf'):
+                    path = os.path.join(root, file)
+                    h = self.get_file_hash(path)
+                    if h:
+                        mtime = os.path.getmtime(path)
+                        hash_map[h] = {"path": path, "mtime": mtime}
+        return hash_map
+
+    def organize_file(self, filepath, target_dir, category, move=False):
         try:
             # Create category folder
             cat_path = os.path.join(target_dir, category)
@@ -70,15 +105,17 @@ class PDFProcessor:
             filename = os.path.basename(filepath)
             dest_path = os.path.join(cat_path, filename)
             
-            # Handle duplicates by renaming
+            # Handle duplicates in filename (different content if we are here)
             base, ext = os.path.splitext(filename)
             counter = 1
             while os.path.exists(dest_path):
                 dest_path = os.path.join(cat_path, f"{base}_{counter}{ext}")
                 counter += 1
             
-            # COPY operation (Safety first)
-            shutil.copy2(filepath, dest_path)
+            if move:
+                shutil.move(filepath, dest_path)
+            else:
+                shutil.copy2(filepath, dest_path)
             return True, dest_path
         except Exception as e:
             return False, str(e)
@@ -126,7 +163,11 @@ class App(ctk.CTk):
 
         # Action Button
         self.btn_start = ctk.CTkButton(self, text="Iniciar Organización", command=self.start_processing_thread, fg_color="green")
-        self.btn_start.pack(pady=10)
+        self.btn_start.pack(pady=5)
+
+        # Move/Delete Switch
+        self.switch_move = ctk.CTkSwitch(self, text="Mover archivos (Borrar originales)")
+        self.switch_move.pack(pady=5)
 
         # Log Area
         self.textbox_log = ctk.CTkTextbox(self, height=200)
@@ -161,6 +202,8 @@ class App(ctk.CTk):
         model = self.entry_model.get()
         self.ollama_client.model = model
         
+        self.move_mode = self.switch_move.get() == 1
+        
         self.processing = True
         self.btn_start.configure(state="disabled")
         self.progressbar.set(0)
@@ -179,6 +222,13 @@ class App(ctk.CTk):
             return
 
         success_count = 0
+        skipped_count = 0
+        
+        # Escanear hashes existentes en destino para evitar duplicados
+        self.log("Escaneando archivos existentes en destino para evitar duplicados...")
+        # hash_map: { hash: {"path": path, "mtime": mtime} }
+        hash_map = self.pdf_processor.get_existing_hashes(self.target_path)
+        self.log(f"Se detectaron {len(hash_map)} archivos únicos en destino.")
         
         for i, filename in enumerate(pdf_files):
             if not self.processing: break
@@ -186,10 +236,40 @@ class App(ctk.CTk):
             filepath = os.path.join(self.source_path, filename)
             self.log(f"Procesando: {filename}...")
             
+            # Check for duplicate by hash and compare modification times
+            file_hash = self.pdf_processor.get_file_hash(filepath)
+            source_mtime = os.path.getmtime(filepath)
+            
+            if file_hash in hash_map:
+                existing = hash_map[file_hash]
+                if source_mtime > existing["mtime"]:
+                    self.log(f"  [-] Reemplazando duplicado: Versión más reciente de {filename} detectada.")
+                    try:
+                        os.remove(existing["path"])
+                    except Exception as e:
+                        self.log(f"  [!] No se pudo borrar versión antigua: {e}")
+                else:
+                    self.log(f"  [-] Saltado: {filename} ya existe (versión igual o más reciente).")
+                    if self.move_mode:
+                        try:
+                            os.remove(filepath)
+                            self.log(f"  [OK] Duplicado antiguo borrado de origen.")
+                        except: pass
+                    skipped_count += 1
+                    # Update progress even if skipped
+                    progress = (i + 1) / total
+                    self.after(0, lambda p=progress: self.progressbar.set(p))
+                    continue
+            
             # Extract Text
             text = self.pdf_processor.extract_text(filepath)
             if not text:
                 self.log(f"  [X] No se pudo leer texto de {filename}. Revisa si está encriptado o es imagen.")
+                if self.move_mode:
+                    self.log("  [!] En modo 'Mover', el archivo no se ha tocado en origen por seguridad.")
+                # Update progress even if failed
+                progress = (i + 1) / total
+                self.after(0, lambda p=progress: self.progressbar.set(p))
                 continue
 
             # Classify
@@ -200,19 +280,23 @@ class App(ctk.CTk):
                 self.log("  [!] Error de Ollama. Asegúrate que 'ollama serve' esté corriendo.")
                 continue
 
-            # Copy
-            success, msg = self.pdf_processor.organize_file(filepath, self.source_path, self.target_path, category)
+            # Process
+            success, msg = self.pdf_processor.organize_file(filepath, self.target_path, category, move=self.move_mode)
             if success:
-                self.log(f"  [OK] Copiado a /{category}/{os.path.basename(msg)}")
+                action = "Movido" if self.move_mode else "Copiado"
+                self.log(f"  [OK] {action} a /{category}/{os.path.basename(msg)}")
+                # Update map in case there are more duplicates of this same file in source
+                hash_map[file_hash] = {"path": msg, "mtime": source_mtime}
                 success_count += 1
             else:
-                self.log(f"  [X] Error copiando: {msg}")
+                self.log(f"  [X] Error procesando: {msg}")
 
             # Update progress
             progress = (i + 1) / total
             self.after(0, lambda p=progress: self.progressbar.set(p))
 
-        self.log(f"--- Finalizado. {success_count}/{total} archivos procesados correctamente. ---")
+        self.log(f"--- Finalizado. ---")
+        self.log(f"Procesados: {success_count} | Saltados (duplicados): {skipped_count} | Total origen: {total}")
         self.after(0, lambda: self.btn_start.configure(state="normal"))
         self.processing = False
 
