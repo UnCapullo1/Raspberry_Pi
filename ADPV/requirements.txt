@@ -1,0 +1,19 @@
+# Dependencias principales para RAG Local
+langchain
+langchain-community
+langchain-huggingface
+chromadb
+pypdf
+
+# Embeddings ligeros multilingües
+sentence-transformers
+
+# Reconocimiento de voz (STT) y micrófono
+SpeechRecognition
+pyaudio
+faster-whisper
+
+# Interfaz CLI y Text-to-Speech (TTS)
+colorama
+pyttsx3
+keyboard
