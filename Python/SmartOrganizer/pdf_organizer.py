@@ -4,21 +4,13 @@ import threading
 import requests
 import fitz  # PyMuPDF
 import hashlib
+import re
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 
 # --- Configuration ---
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 DEFAULT_MODEL = "llama3"  # Change to "mistral" or "gemma" if preferred
-CATEGORIES = [
-    "Calculos de herramientas y piezas normalizadas",
-    "Materiales",
-    "Moldes de productos polimericos",
-    "Ingles",
-    "Dibujo tecnico",
-    "Maquinas por estampacion",
-    "Otros"
-]
 
 class OllamaClient:
     def __init__(self, model=DEFAULT_MODEL):
@@ -27,11 +19,10 @@ class OllamaClient:
     def classify_text(self, text):
         prompt = f"""
         Actúa como un asistente de organización de archivos.
-        Analiza el siguiente texto extraído de un documento PDF y clasifícalo en UNA sola de estas categorías:
-        {', '.join(CATEGORIES)}.
+        Analiza el siguiente texto extraído de un documento PDF y crea un nombre de categoría corto y descriptivo (máximo 4 palabras) para clasificarlo.
+        El nombre debe ser general, como el nombre de una asignatura, un tema principal o un tipo de documento. Ejemplos: "Matemáticas", "Facturas", "Apuntes de Mecánica", "Manuales".
         
-        Si no estás seguro, usa "Otros".
-        Responde SOLAMENTE con el nombre de la categoría, sin explicaciones ni puntos.
+        Responde SOLAMENTE con el nombre de la categoría, sin explicaciones, sin comillas y sin puntos finales.
         
         Texto del documento (primeros fragmentos):
         {text[:2000]}
@@ -45,11 +36,20 @@ class OllamaClient:
             })
             if response.status_code == 200:
                 result = response.json().get("response", "").strip()
-                # Clean up response to match categories
-                for cat in CATEGORIES:
-                    if cat.lower() in result.lower():
-                        return cat
-                return "Otros"
+                
+                # Limpiar el nombre para que sea válido como carpeta en Windows/Linux
+                result = re.sub(r'[<>:"/\\|?*]', '', result)
+                # Eliminar comillas simples o dobles que a veces la IA añade
+                result = result.replace('"', '').replace("'", "")
+                
+                result = result.strip()
+                
+                # Si la IA falló o devolvió algo muy largo, poner por defecto "Otros Documentos"
+                if not result or len(result) > 40:
+                    return "Otros Documentos"
+                    
+                # Capitalizar cada palabra para que quede estético (ej: "Dibujo Tecnico")
+                return result.title()
             else:
                 return "Error_API"
         except Exception as e:
