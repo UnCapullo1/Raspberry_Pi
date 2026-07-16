@@ -1,8 +1,8 @@
 print("TROQ3")
 # --- Datos ---
 # e=2, Kd=50
-e=2.0
-Kd=50.0
+e=float(input("e:"))
+Kd=float(input("Kd:"))
 # "b" usado en formula (40)
 # (Dist. apoyos 40, Ancho 60)
 b=40.0

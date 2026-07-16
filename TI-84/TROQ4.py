@@ -2,8 +2,8 @@ import math
 print("TROQ4")
 
 # --- Datos ---
-e=2.0
-r=3.0
+e=float(input("e:"))
+r=float(input("r:"))
 print("e="+str(e))
 print("r="+str(r))
 

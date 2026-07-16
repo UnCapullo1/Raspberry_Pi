@@ -1,9 +1,9 @@
 print("TROQ1")
 # --- Datos ---
-Kc=105.0
-e=2.0
-Pe=142.83
-Pi=60.0
+Kc=float(input("Kc:"))
+e=float(input("e:"))
+Pe=float(input("P_ext:"))
+Pi=float(input("P_int:"))
 print("Kc="+str(Kc))
 print("e="+str(e))
 print("P_ext="+str(Pe))
